@@ -21,7 +21,7 @@ jobs:
         make package THEOS_PACKAGE_SCHEME=rootless
         
     - name: Upload DEB Artifact
-      uses: actions/artifacts/upload@v3
+      uses: actions/upload-artifact@v3
       with:
         name: FreeFireMaxESP-deb
         path: packages/*.deb
