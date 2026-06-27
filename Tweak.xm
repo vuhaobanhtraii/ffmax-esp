@@ -1,7 +1,7 @@
 #import <UIKit/UIKit.h>
 #import <mach-o/dyld.h>
 #include <vector>
-#include <substrate.h> // Theos standard header for hooking
+#include <cmath> // For sqrt
 
 // Unity Engine Structures
 struct Vector3 {
@@ -152,7 +152,7 @@ std::vector<PlayerInfo> GetPlayers() {
             float dx = worldPos.x - localPos.x;
             float dy = worldPos.y - localPos.y;
             float dz = worldPos.z - localPos.z;
-            info.distance = sqrt(dx*dx + dy*dy + dz*dz);
+            info.distance = std::sqrt(dx*dx + dy*dy + dz*dz);
             
             playerList.push_back(info);
         }
