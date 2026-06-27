@@ -1,7 +1,7 @@
 #import <UIKit/UIKit.h>
 #import <mach-o/dyld.h>
 #include <vector>
-#include <cmath> // For sqrt
+#include <cmath> // For std::sqrt
 
 // Unity Engine Structures
 struct Vector3 {
@@ -229,12 +229,34 @@ void InjectESP() {
     dispatch_once(&onceToken, ^{
         InitOffsets();
         
+        // Wait 5 seconds after launching to ensure the UIWindow is fully initialized
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             UIWindow *keyWindow = nil;
-            for (UIWindow *window in [UIApplication sharedApplication].windows) {
-                if (window.isKeyWindow) {
-                    keyWindow = window;
-                    break;
+            
+            // Resolve key window safely on all iOS versions (including iOS 13+ SceneDelegate)
+            if (@available(iOS 13.0, *)) {
+                for (UIWindowScene *scene in [UIApplication sharedApplication].connectedScenes) {
+                    if (scene.activationState == UISceneActivationStateForegroundActive) {
+                        for (UIWindow *window in scene.windows) {
+                            if (window.isKeyWindow) {
+                                keyWindow = window;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (!keyWindow) {
+                keyWindow = [UIApplication sharedApplication].keyWindow;
+            }
+            
+            if (!keyWindow) {
+                for (UIWindow *window in [UIApplication sharedApplication].windows) {
+                    if (window.isKeyWindow) {
+                        keyWindow = window;
+                        break;
+                    }
                 }
             }
             
@@ -242,22 +264,19 @@ void InjectESP() {
                 ESPView *esp = [[ESPView alloc] initWithFrame:keyWindow.bounds];
                 [keyWindow addSubview:esp];
                 NSLog(@"[FFMaxESP] ESP Overlay injected successfully!");
+            } else {
+                NSLog(@"[FFMaxESP] Error: Key window not found.");
             }
         });
     });
 }
 
-// Hook Unity initialization to start injection safely
+// Hook Unity initialization using standard Objective-C NSNotificationCenter (ARC-friendly)
 %ctor {
-    // When the tweak library loads, wait for the app to launch then initialize ESP
-    CFNotificationCenterAddObserver(
-        CFNotificationCenterGetLocalCenter(),
-        NULL,
-        [](CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
-            InjectESP();
-        },
-        (CFStringRef)UIApplicationDidFinishLaunchingNotification,
-        NULL,
-        CFNotificationSuspensionBehaviorDeliverImmediately
-    );
+    [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidFinishLaunchingNotification
+                                                     object:nil
+                                                      queue:[NSOperationQueue mainQueue]
+                                                 usingBlock:^(NSNotification *note) {
+        InjectESP();
+    }];
 }
