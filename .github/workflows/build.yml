@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-13
 
     steps:
     - name: Checkout Repository
@@ -15,16 +15,18 @@ jobs:
 
     - name: Install Theos
       run: |
-        bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
-        echo "THEOS=~/theos" >> $GITHUB_ENV
+        git clone --recursive https://github.com/theos/theos.git $HOME/theos
+        echo "THEOS=$HOME/theos" >> $GITHUB_ENV
         
-    - name: Install iOS SDK
+    - name: Setup iOS SDK
       run: |
-        git clone --depth 1 https://github.com/theos/sdks.git ~/theos/sdks
+        mkdir -p $HOME/theos/sdks
+        # Symlink the default iOS SDK from Xcode on macOS runner
+        ln -s /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk $HOME/theos/sdks/iPhoneOS.sdk
         
     - name: Build Package
       run: |
-        export THEOS=~/theos
+        export THEOS=$HOME/theos
         make package THEOS_PACKAGE_SCHEME=rootless
         
     - name: Upload DEB Artifact
