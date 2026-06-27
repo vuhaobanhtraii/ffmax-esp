@@ -1,0 +1,9 @@
+Package: com.yourname.ffmaxesp
+Name: Free Fire Max ESP
+Depends: mobilesubstrate
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: Safe ESP locator for Free Fire Max iOS
+Maintainer: Antigravity
+Author: Antigravity
+Section: Tweaks

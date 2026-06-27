@@ -1,0 +1,34 @@
+name: Build Tweak
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Install Theos
+      run: |
+        bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
+        echo "THEOS=~/theos" >> $GITHUB_ENV
+        
+    - name: Install iOS SDK
+      run: |
+        git clone --depth 1 https://github.com/theos/sdks.git ~/theos/sdks
+        
+    - name: Build Package
+      run: |
+        export THEOS=~/theos
+        make package THEOS_PACKAGE_SCHEME=rootless
+        
+    - name: Upload DEB Artifact
+      uses: actions/artifacts/upload@v3
+      with:
+        name: FreeFireMaxESP-deb
+        path: packages/*.deb
