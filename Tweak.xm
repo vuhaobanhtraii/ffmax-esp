@@ -2,6 +2,7 @@
 #import <mach-o/dyld.h>
 #include <vector>
 #include <cmath> // For std::sqrt
+#include <dlfcn.h> // For dlsym
 
 // Unity Engine Structures
 struct Vector3 {
@@ -26,15 +27,13 @@ Transform (*Component_get_transform)(void* component);
 Vector3 (*Transform_get_position)(Transform transform);
 void* (*Object_FindObjectsOfType)(void* type);
 
-// IL2CPP Runtime API Exports (dynamically resolved)
-extern "C" {
-    Il2CppObject* il2cpp_domain_get();
-    void* il2cpp_domain_assembly_open(Il2CppObject* domain, const char* name);
-    void* il2cpp_assembly_get_image(void* assembly);
-    void* il2cpp_class_from_name(void* image, const char* namesp, const char* name);
-    Il2CppType* il2cpp_class_get_type(void* klass);
-    void* il2cpp_type_get_object(Il2CppType* type);
-}
+// IL2CPP Runtime API Function Pointers (dynamically resolved at runtime)
+void* (*il2cpp_domain_get)() = nullptr;
+void* (*il2cpp_domain_assembly_open)(void* domain, const char* name) = nullptr;
+void* (*il2cpp_assembly_get_image)(void* assembly) = nullptr;
+void* (*il2cpp_class_from_name)(void* image, const char* namesp, const char* name) = nullptr;
+void* (*il2cpp_class_get_type)(void* klass) = nullptr;
+void* (*il2cpp_type_get_object)(void* type) = nullptr;
 
 uintptr_t slideAddress = 0;
 void* umaDataClassTypeObject = nullptr;
@@ -60,13 +59,25 @@ void InitOffsets() {
     Component_get_transform = (Transform(*)(void*))(slideAddress + 0x9289418);
     Transform_get_position = (Vector3(*)(Transform))(slideAddress + 0x929B728);
     Object_FindObjectsOfType = (void*(*)(void*))(slideAddress + 0x9293D94);
+
+    // Resolve IL2CPP runtime API functions dynamically (avoids linker undefined symbol errors)
+    il2cpp_domain_get = (void*(*)())dlsym(RTLD_DEFAULT, "il2cpp_domain_get");
+    il2cpp_domain_assembly_open = (void*(*)(void*, const char*))dlsym(RTLD_DEFAULT, "il2cpp_domain_assembly_open");
+    il2cpp_assembly_get_image = (void*(*)(void*))dlsym(RTLD_DEFAULT, "il2cpp_assembly_get_image");
+    il2cpp_class_from_name = (void*(*)(void*, const char*, const char*))dlsym(RTLD_DEFAULT, "il2cpp_class_from_name");
+    il2cpp_class_get_type = (void*(*)(void*))dlsym(RTLD_DEFAULT, "il2cpp_class_get_type");
+    il2cpp_type_get_object = (void*(*)(void*))dlsym(RTLD_DEFAULT, "il2cpp_type_get_object");
 }
 
 // Retrieve UMAData Type Object for FindObjectsOfType
 void* GetUMADataTypeObject() {
     if (umaDataClassTypeObject) return umaDataClassTypeObject;
+    if (!il2cpp_domain_get || !il2cpp_domain_assembly_open || !il2cpp_assembly_get_image || 
+        !il2cpp_class_from_name || !il2cpp_class_get_type || !il2cpp_type_get_object) {
+        return nullptr;
+    }
     
-    Il2CppObject* domain = il2cpp_domain_get();
+    void* domain = il2cpp_domain_get();
     if (!domain) return nullptr;
     void* assembly = il2cpp_domain_assembly_open(domain, "Assembly-CSharp.dll");
     if (!assembly) return nullptr;
@@ -74,7 +85,7 @@ void* GetUMADataTypeObject() {
     if (!image) return nullptr;
     void* klass = il2cpp_class_from_name(image, "UMA", "UMAData");
     if (!klass) return nullptr;
-    Il2CppType* type = il2cpp_class_get_type(klass);
+    void* type = il2cpp_class_get_type(klass);
     if (!type) return nullptr;
     
     umaDataClassTypeObject = il2cpp_type_get_object(type);
