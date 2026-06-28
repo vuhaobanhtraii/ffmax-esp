@@ -271,12 +271,21 @@ void InjectESP() {
     });
 }
 
-// Hook Unity initialization using standard Objective-C NSNotificationCenter (ARC-friendly)
+// Helper Class to receive Notification without using Blocks (avoids -fblocks compiler errors)
+@interface ESPNotificationLoader : NSObject
++ (void)appDidFinishLaunching:(NSNotification *)notification;
+@end
+
+@implementation ESPNotificationLoader
++ (void)appDidFinishLaunching:(NSNotification *)notification {
+    InjectESP();
+}
+@end
+
+// Hook Unity initialization using standard Target-Action NSNotificationCenter
 %ctor {
-    [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidFinishLaunchingNotification
-                                                     object:nil
-                                                      queue:[NSOperationQueue mainQueue]
-                                                 usingBlock:^(NSNotification *note) {
-        InjectESP();
-    }];
+    [[NSNotificationCenter defaultCenter] addObserver:[ESPNotificationLoader class]
+                                             selector:@selector(appDidFinishLaunching:)
+                                                 name:UIApplicationDidFinishLaunchingNotification
+                                               object:nil];
 }
