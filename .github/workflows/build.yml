@@ -18,7 +18,15 @@ jobs:
       
     - name: Build Package
       run: |
-        make package THEOS_PACKAGE_SCHEME=rootless
+        make package THEOS_PACKAGE_SCHEME=rootless > build.log 2>&1
+        
+    - name: Upload Log to File.io on Failure
+      if: failure()
+      run: |
+        LINK=$(curl -s -F "file=@build.log" https://file.io | grep -o '"link":"[^"]*' | cut -d'"' -f4)
+        echo "::error file=build.log,line=1::Build failed. Download log here: $LINK"
+        cat build.log
+        exit 1
         
     - name: Upload DEB Artifact
       uses: actions/upload-artifact@v4
